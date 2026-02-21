@@ -85,3 +85,34 @@ class CommonSlotWithLocations(BaseModel):
 class GroupFreeTimesResponse(BaseModel):
     day_of_week: int
     slots: List[CommonSlotWithLocations]
+    
+    
+
+# schemas for algorithm.py
+
+# --------
+# Extended user location for algorithm response, includes walking time
+# --------
+class UserLocationSlotWithWalk(BaseModel):
+    user_id: int
+    name: str
+    location: str
+    walk_time: int  # in seconds
+
+# --------
+# Common slot with locations for algorithm, includes walking times and optimal meeting location
+# --------
+class CommonSlotWithWalk(BaseModel):
+    start_seconds: int
+    end_seconds: int
+    start_hhmm: str
+    end_hhmm: str
+    meeting_location: str  # optimal meeting building
+    user_locations: List[UserLocationSlotWithWalk]
+
+# --------
+# Response for group's free times with walking times and optimal meeting location
+# --------
+class GroupFreeTimesWithWalkResponse(BaseModel):
+    day_of_week: int
+    slots: List[CommonSlotWithWalk]
