@@ -42,7 +42,10 @@ class TimeSlotCreate(BaseModel):
     end_seconds: int # seconds past 7:00 am
     location: str
     purpose: Optional[str] = None # optional field for user to specify the purpose of this time slot (e.g., "gym", "work", "leisure")
-    
+
+# ------
+# Response model for returning availability information
+# ------
 class TimeSlotResponse(BaseModel):
     availability_id: int
     day_of_week: int
