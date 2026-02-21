@@ -62,32 +62,6 @@ class TimeSlotResponse(BaseModel):
 # Main Algorithm related schemas
 # ------
 
-# --------
-# User location for a given free slot
-# --------
-class UserLocationSlot(BaseModel):
-    user_id: int
-    location: str
-
-# --------
-# A single free slot including each user's location
-# --------
-class CommonSlotWithLocations(BaseModel):
-    start_seconds: int
-    end_seconds: int
-    start_hhmm: str
-    end_hhmm: str
-    user_locations: List[UserLocationSlot]
-
-# --------
-# Response for a group's free times on a specific day
-# --------
-class GroupFreeTimesResponse(BaseModel):
-    day_of_week: int
-    slots: List[CommonSlotWithLocations]
-    
-    
-
 # schemas for algorithm.py
 
 # --------
