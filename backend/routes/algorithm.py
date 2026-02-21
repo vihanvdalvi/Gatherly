@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException  # for creating API routes and handling HTTP errors
 from typing import List  # for type hinting lists
 from database import get_db_connection  # function to get a database connection
-from schemas import GroupFreeTimesResponseWithName, CommonSlotWithLocationsWithName, UserLocationSlotWithName  # new schemas
+from schemas import GroupFreeTimesResponseWithName, CommonSlotWithLocationsWithName, PathNode, UserLocationSlotWithName  # new schemas
 from main import campus_graph  # the preloaded CampusGraph instance
 
 # create a router for algorithm-related endpoints
@@ -20,6 +20,7 @@ def seconds_to_hhmm(seconds):
 # Endpoint: Get best meeting times for a group based on free slots and travel times
 # GET /algorithm/group/{group_id}/best_meeting_times?day_of_week=...&meeting_duration=...
 # duration (minimum time user wants to meet for is in minutes, e.g., 30 for 30 minutes)
+# returns free time slots for the group on the specified day, along with the optimal meeting location and walking times for each user to that location and their names
 # --------
 @router.get("/group/{group_id}/best_meeting_times", response_model=GroupFreeTimesResponseWithName)
 def get_best_meeting_times(group_id: int, day_of_week: int, meeting_duration: int):
@@ -115,11 +116,13 @@ def get_best_meeting_times(group_id: int, day_of_week: int, meeting_duration: in
             max_walk = 0
             for user_id, loc in zip(user_busy_slots.keys(), user_starts):
                 walk_time = campus_graph.get_shortest_time(loc, top_building)
+                path_coords = campus_graph.get_shortest_path_with_coords(loc, top_building)
                 walking_times.append(UserLocationSlotWithName(
                     user_id=user_id,
                     name=user_names[user_id],
                     location=loc,
-                    walk_time=walk_time
+                    walk_time=walk_time,
+                    path=[PathNode(**n) for n in path_coords] # convert dicts to pydantic
                 ))
                 if walk_time > max_walk:
                     max_walk = walk_time

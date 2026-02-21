@@ -65,6 +65,14 @@ class TimeSlotResponse(BaseModel):
 # schemas for algorithm.py
 
 # --------
+# user location and coords for frontend display in algorithm response
+# --------
+class PathNode(BaseModel):
+    location: str
+    lat: float
+    lon: float
+
+# --------
 # Extended user location for algorithm response, includes walking time
 # --------
 class UserLocationSlotWithWalk(BaseModel):
@@ -72,6 +80,7 @@ class UserLocationSlotWithWalk(BaseModel):
     name: str
     location: str
     walk_time: int  # in seconds
+    path:  List[PathNode]  # update to include full coordinates
 
 # --------
 # Common slot with locations for algorithm, includes walking times and optimal meeting location
