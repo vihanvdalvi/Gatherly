@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 from database import get_db_connection # function to get a database connection
-from schemas import TimeSlotCreate, TimeSlotResponse, GroupFreeTimesResponse, CommonSlotWithLocations, UserLocationSlot # format for user data
+from schemas import TimeSlotCreate, TimeSlotResponse # format for user data
 from typing import List
 
 # create a router for schedule-related endpoints

@@ -13,7 +13,7 @@ class CampusGraph:
         """
         
         # Load the graph from the .dot file
-        self.graph = nx.DiGraph(nx.nx_pydot.read_dot('campus_graph.dot'))
+        self.graph = nx.DiGraph(nx.nx_pydot.read_dot('./graph/campus.dot'))
         
         # convert edge weights to float seconds (they are read as strings from the .dot file)
         for u, v, d in self.graph.edges(data=True):

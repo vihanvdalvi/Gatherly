@@ -99,3 +99,15 @@ class CommonSlotWithWalk(BaseModel):
 class GroupFreeTimesWithWalkResponse(BaseModel):
     day_of_week: int
     slots: List[CommonSlotWithWalk]
+
+# --------
+# Aliases for algorithm.py compatibility
+# --------
+class UserLocationSlotWithName(UserLocationSlotWithWalk):
+    pass
+
+class CommonSlotWithLocationsWithName(CommonSlotWithWalk):
+    pass
+
+class GroupFreeTimesResponseWithName(GroupFreeTimesWithWalkResponse):
+    pass
