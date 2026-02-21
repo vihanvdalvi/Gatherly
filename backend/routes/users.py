@@ -114,3 +114,52 @@ def list_user_groups(user_id: int):
     
     return [{"group_id": gid, "group_name": gname} for gid, gname in rows]
     
+
+# ------
+# Endpoint: Join a group using a group code and group_id
+# POST /users/{user_id}/join-group
+# ------
+@router.post("/{user_id}/join-group")
+def join_group(user_id: int, group_id: int, group_code: str):
+    
+    # Establish a database connection to perform the necessary queries for joining a group. This includes verifying the group code, checking if the user is already a member of the group, and adding the user to the group if all checks pass.
+    conn = get_db_connection()
+    # cursor is a pyodbc cursor object that allows us to execute SQL queries using the connection established by get_db_connection()
+    cursor = conn.cursor()
+    
+    # Verify the group code is correct for the specified group_id
+    cursor.execute("SELECT group_code FROM Groups WHERE group_id = ?", group_id)
+    row = cursor.fetchone()
+    
+    # If no group is found with the provided group_id, we raise an HTTP 404 error indicating that the group was not found. If a group is found but the provided group code does not match the expected code, we raise an HTTP 400 error indicating that the group code is invalid.
+    if not row:
+        raise HTTPException(status_code=404, detail="Group not found")
+    
+    # The expected group code is retrieved from the database and compared against the provided group code. If they do not match, an error is raised. This ensures that only users with the correct group code can join the group.
+    expected_code = row[0]
+    
+    # If the provided group code does not match the expected code from the database, we raise an HTTP 400 error indicating that the group code is invalid. This prevents unauthorized users from joining the group without the correct code.
+    if group_code != expected_code:
+        raise HTTPException(status_code=400, detail="Invalid group code")
+    
+    
+    # Check if the user is already a member of the group
+    cursor.execute("""
+        SELECT membership_id FROM GroupMemberships 
+        WHERE user_id = ? AND group_id = ?
+    """, user_id, group_id)
+    
+    # If a record is found, it means the user is already a member of the group, so we raise an HTTP 400 error indicating that the user is already a member of this group. This prevents duplicate memberships and ensures that a user cannot join the same group multiple times.
+    if cursor.fetchone():
+        raise HTTPException(status_code=400, detail="User already a member of this group")
+    
+    # Add the user to the group
+    cursor.execute("""
+        INSERT INTO GroupMemberships (user_id, group_id) VALUES (?, ?)
+    """, user_id, group_id)
+    
+    # After successfully adding the user to the group, we commit the transaction to save the changes to the database and then close the connection. Finally, we return a success message indicating that the user has successfully joined the group.
+    conn.commit()
+    conn.close()
+    
+    return {"message": "Successfully joined the group"}
