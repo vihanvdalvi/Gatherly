@@ -1,47 +1,32 @@
-# ==== routes/users.py ====
 from fastapi import APIRouter, HTTPException
 from database import get_db_connection # function to get a database connection
 from auth import hash_password, verify_password # password utilities
 from schemas import UserCreate, UserLogin, UserResponse # format for user data
-import random # for generating random group codes
 
 # create a router for user-related endpoints
 router = APIRouter()
 
-# ------
-# Endpoint: Signup for a new user 
-# Post /users/signup
-# ------
+# ---- Signup ----
 @router.post("/signup", response_model=UserResponse)
 def signup(user: UserCreate):
-    
-    # If connection fails, raise an HTTP 500 error
     conn = get_db_connection()
-    # cursor is a pyodbc cursor object that allows us to execute SQL queries
     cursor = conn.cursor()
-    
-    # check if the email already exists in the database
-    cursor.execute("SELECT user_id FROM Users WHERE email = ?", user.email)
-    
-    # If a record is found, it means the email is already registered, so we raise an HTTP 400 error
-    if cursor.fetchone():
-        raise HTTPException(status_code=400, detail="Email already registered")
+    try:
+        cursor.execute("SELECT user_id FROM Users WHERE email = ?", user.email)
+        if cursor.fetchone():
+            raise HTTPException(status_code=400, detail="Email already registered")
 
-    # Hash the password before storing it
-    hashed_pwd = hash_password(user.password)
-    
-    # Insert new user and get generated user_id
-    cursor.execute("""
-        INSERT INTO Users (name, email, password_hash, home_location)
-        OUTPUT INSERTED.user_id
-        VALUES (?, ?, ?, ?)
-    """, user.name, user.email, hashed_pwd, user.home_location)
-    
-    user_id = cursor.fetchone()[0] # get the generated user_id
-    conn.commit() # commit the transaction
-    conn.close() # close the cursor connection with the database
+        hashed_pwd = hash_password(user.password)
+        cursor.execute("""
+            INSERT INTO Users (name, email, password_hash, home_location)
+            OUTPUT INSERTED.user_id
+            VALUES (?, ?, ?, ?)
+        """, user.name, user.email, hashed_pwd, user.home_location)
+        user_id = cursor.fetchone()[0]
+        conn.commit()
+    finally:
+        conn.close()
 
-    # Return the user_id in the schema response model
     return UserResponse(
         user_id=user_id,
         name=user.name,
@@ -49,117 +34,76 @@ def signup(user: UserCreate):
         home_location=user.home_location
     )
 
-# ------
-# Endpoint: Login
-# POST /users/login
-# ------
+# ---- Login ----
 @router.post("/login")
 def login(credentials: UserLogin):
-    
-    # establish a database connection
     conn = get_db_connection()
-    # create a cursor to execute SQL queries using the connection established by get_db_connection()
     cursor = conn.cursor()
-    
-    # retrieve the user record based on the provided email
-    cursor.execute(
-        "SELECT user_id, name, email, password_hash, home_location FROM Users WHERE email = ?", 
-        credentials.email
-    )
-    
-    # fetchone() retrieves the first row of the result set returned by the SQL query. If no record is found, it returns None.
-    row = cursor.fetchone()
-    # close the database connection after fetching the user record
-    conn.close() 
-    
-    # if user record is found, verify the provided password against the stored hashed password
-    if not row:
-        raise HTTPException(status_code=400, detail="Invalid email or password")
-    
-    # unpack the user record into individual variables
-    user_id, name, email, hashed_pwd, home_location = row
-    
-    # verify the password 
-    # no need to rehash the provided password, we can directly compare it with the stored hashed password using the verify_password function from auth module
-    if not verify_password(credentials.password, hashed_pwd):
-        raise HTTPException(status_code=400, detail="Invalid email or password")
-    
-    # return the user info using the UserResponse schema, excluding the password
+    try:
+        cursor.execute(
+            "SELECT user_id, name, email, password_hash, home_location FROM Users WHERE email = ?", 
+            credentials.email
+        )
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=400, detail="Invalid email or password")
+        user_id, name, email, hashed_pwd, home_location = row
+
+        if not verify_password(credentials.password, hashed_pwd):
+            raise HTTPException(status_code=400, detail="Invalid email or password")
+    finally:
+        conn.close()
+
     return UserResponse(
         user_id=user_id,
         name=name,
         email=email,
         home_location=home_location
     )
-    
-# ------
-# Endpoint: List all groups a user belongs to
-# GET /users/{user_id}/list-groups
-# ------
+
+# ---- List User Groups ----
 @router.get("/{user_id}/list-groups")
 def list_user_groups(user_id: int):
     conn = get_db_connection()
     cursor = conn.cursor()
-    
-    # Only fetch group ID and name for groups this user belongs to
-    cursor.execute("""
-        SELECT g.group_id, g.group_name
-        FROM GroupMemberships gm
-        JOIN Groups g ON gm.group_id = g.group_id
-        WHERE gm.user_id = ?
-    """, user_id)
-    
-    rows = cursor.fetchall()
-    conn.close()
-    
-    return [{"group_id": gid, "group_name": gname} for gid, gname in rows]
-    
+    try:
+        cursor.execute("""
+            SELECT g.group_id, g.group_name
+            FROM GroupMemberships gm
+            JOIN Groups g ON gm.group_id = g.group_id
+            WHERE gm.user_id = ?
+        """, user_id)
+        rows = cursor.fetchall()
+    finally:
+        conn.close()
 
-# ------
-# Endpoint: Join a group using a group code and group_id
-# POST /users/{user_id}/join-group
-# ------
+    return [{"group_id": gid, "group_name": gname} for gid, gname in rows]
+
+# ---- Join Group ----
 @router.post("/{user_id}/join-group")
 def join_group(user_id: int, group_id: int, group_code: str):
-    
-    # Establish a database connection to perform the necessary queries for joining a group. This includes verifying the group code, checking if the user is already a member of the group, and adding the user to the group if all checks pass.
     conn = get_db_connection()
-    # cursor is a pyodbc cursor object that allows us to execute SQL queries using the connection established by get_db_connection()
     cursor = conn.cursor()
-    
-    # Verify the group code is correct for the specified group_id
-    cursor.execute("SELECT group_code FROM Groups WHERE group_id = ?", group_id)
-    row = cursor.fetchone()
-    
-    # If no group is found with the provided group_id, we raise an HTTP 404 error indicating that the group was not found. If a group is found but the provided group code does not match the expected code, we raise an HTTP 400 error indicating that the group code is invalid.
-    if not row:
-        raise HTTPException(status_code=404, detail="Group not found")
-    
-    # The expected group code is retrieved from the database and compared against the provided group code. If they do not match, an error is raised. This ensures that only users with the correct group code can join the group.
-    expected_code = row[0]
-    
-    # If the provided group code does not match the expected code from the database, we raise an HTTP 400 error indicating that the group code is invalid. This prevents unauthorized users from joining the group without the correct code.
-    if group_code != expected_code:
-        raise HTTPException(status_code=400, detail="Invalid group code")
-    
-    
-    # Check if the user is already a member of the group
-    cursor.execute("""
-        SELECT membership_id FROM GroupMemberships 
-        WHERE user_id = ? AND group_id = ?
-    """, user_id, group_id)
-    
-    # If a record is found, it means the user is already a member of the group, so we raise an HTTP 400 error indicating that the user is already a member of this group. This prevents duplicate memberships and ensures that a user cannot join the same group multiple times.
-    if cursor.fetchone():
-        raise HTTPException(status_code=400, detail="User already a member of this group")
-    
-    # Add the user to the group
-    cursor.execute("""
-        INSERT INTO GroupMemberships (user_id, group_id) VALUES (?, ?)
-    """, user_id, group_id)
-    
-    # After successfully adding the user to the group, we commit the transaction to save the changes to the database and then close the connection. Finally, we return a success message indicating that the user has successfully joined the group.
-    conn.commit()
-    conn.close()
-    
+    try:
+        cursor.execute("SELECT group_code FROM Groups WHERE group_id = ?", group_id)
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Group not found")
+        expected_code = row[0]
+
+        if group_code != expected_code:
+            raise HTTPException(status_code=400, detail="Invalid group code")
+
+        cursor.execute("""
+            SELECT membership_id FROM GroupMemberships 
+            WHERE user_id = ? AND group_id = ?
+        """, user_id, group_id)
+        if cursor.fetchone():
+            raise HTTPException(status_code=400, detail="User already a member of this group")
+
+        cursor.execute("INSERT INTO GroupMemberships (user_id, group_id) VALUES (?, ?)", user_id, group_id)
+        conn.commit()
+    finally:
+        conn.close()
+
     return {"message": "Successfully joined the group"}
