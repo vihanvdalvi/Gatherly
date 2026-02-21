@@ -32,3 +32,21 @@ class UserResponse(BaseModel):
     name: str
     email: EmailStr
     home_location: str
+    
+# ------
+# Schedule / Availability related schemas
+# ------
+class TimeSlotCreate(BaseModel):
+    day_of_week: int # 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    start_seconds: int # seconds past 7:00 am
+    end_seconds: int # seconds past 7:00 am
+    location: str
+    purpose: Optional[str] = None # optional field for user to specify the purpose of this time slot (e.g., "gym", "work", "leisure")
+    
+class TimeSlotResponse(BaseModel):
+    availability_id: int
+    day_of_week: int
+    start_seconds: int
+    end_seconds: int
+    location: str
+    purpose: Optional[str] = None
