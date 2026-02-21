@@ -169,3 +169,48 @@ def remove_member(group_id: int, creator_user_id: int, member_user_id: int):
         conn.close() # always close connection
 
     return {"message": f"User {member_user_id} removed from group {group_id}"}
+
+# --------
+# Endpoint: User joins a group using group code
+# POST /groups/{group_id}/join
+# --------
+@router.post("/{group_id}/join")
+def join_group(group_id: int, user_id: int, group_code: str):
+    """
+    Adds a user to a group if the group_code matches and the user is not already a member.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        # Check if the group exists and get its code
+        cursor.execute("SELECT group_code FROM Groups WHERE group_id = ?", group_id)
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Group not found")
+
+        expected_code = row[0]
+
+        # Validate group code
+        if group_code != expected_code:
+            raise HTTPException(status_code=400, detail="Invalid group code")
+
+        # Check if the user is already a member
+        cursor.execute("""
+            SELECT membership_id FROM GroupMemberships
+            WHERE user_id = ? AND group_id = ?
+        """, user_id, group_id)
+        if cursor.fetchone():
+            raise HTTPException(status_code=400, detail="User already a member of this group")
+
+        # Add user to group
+        cursor.execute(
+            "INSERT INTO GroupMemberships (user_id, group_id) VALUES (?, ?)",
+            user_id, group_id
+        )
+        conn.commit()
+
+    finally:
+        conn.close()
+
+    return {"group_id": group_id, "user_id": user_id, "message": "Successfully joined the group"}

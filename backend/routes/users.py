@@ -78,32 +78,3 @@ def list_user_groups(user_id: int):
         conn.close()
 
     return [{"group_id": gid, "group_name": gname} for gid, gname in rows]
-
-# ---- Join Group ----
-@router.post("/{user_id}/join-group")
-def join_group(user_id: int, group_id: int, group_code: str):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("SELECT group_code FROM Groups WHERE group_id = ?", group_id)
-        row = cursor.fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail="Group not found")
-        expected_code = row[0]
-
-        if group_code != expected_code:
-            raise HTTPException(status_code=400, detail="Invalid group code")
-
-        cursor.execute("""
-            SELECT membership_id FROM GroupMemberships 
-            WHERE user_id = ? AND group_id = ?
-        """, user_id, group_id)
-        if cursor.fetchone():
-            raise HTTPException(status_code=400, detail="User already a member of this group")
-
-        cursor.execute("INSERT INTO GroupMemberships (user_id, group_id) VALUES (?, ?)", user_id, group_id)
-        conn.commit()
-    finally:
-        conn.close()
-
-    return {"message": "Successfully joined the group"}
