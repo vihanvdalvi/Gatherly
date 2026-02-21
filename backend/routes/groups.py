@@ -88,7 +88,7 @@ def create_group(group_name: str, creator_user_id: int):
 # GET /groups/{group_id}/displayInfo
 # --------
 @router.get("/{group_id}/displayInfo")
-def get_group_info(group_id: int):
+def get_group_info(group_id: int, requester_user_id: int):
     
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -96,7 +96,7 @@ def get_group_info(group_id: int):
     try:
         # Get group info including creator
         cursor.execute("""
-            SELECT g.group_name, u.user_id, u.name
+            SELECT g.group_name, g.group_code, u.user_id, u.name
             FROM Groups g
             JOIN Users u ON g.creator_user_id = u.user_id
             WHERE g.group_id = ?
@@ -109,7 +109,17 @@ def get_group_info(group_id: int):
             raise HTTPException(status_code=404, detail="Group not found")
 
         # Unpack the group information into individual variables
-        group_name, creator_id, creator_name = group_row
+        group_name, group_code, creator_id, creator_name = group_row
+
+        # Check if requester is creator or a member of the group
+        if requester_user_id != creator_id:
+            cursor.execute("""
+                SELECT 1 FROM GroupMemberships
+                WHERE group_id = ? AND user_id = ?
+            """, group_id, requester_user_id)
+
+            if not cursor.fetchone():
+                raise HTTPException(status_code=403, detail="Not authorized to view this group")
 
         # Get all members of the group (user_id and name)
         cursor.execute("""
@@ -127,18 +137,24 @@ def get_group_info(group_id: int):
     members = [{"user_id": uid, "name": name} for uid, name in members_rows]
 
     # Return the group information including group name, creator info, and members list
-    return {
+    response = {
         "group_id": group_id,
         "group_name": group_name,
         "creator": {"user_id": creator_id, "name": creator_name},
         "members": members
     }
 
+    # Only show group code if requester is the creator
+    if requester_user_id == creator_id:
+        response["group_code"] = group_code
+
+    return response
+
 # --------
 # Endpoint: remove a member from the group (creator only)
 # POST /groups/{group_id}/remove_member
 # --------
-@router.post("/{group_id}/remove_member")
+@router.delete("/{group_id}/remove_member")
 def remove_member(group_id: int, creator_user_id: int, member_user_id: int):
     
     conn = get_db_connection()
