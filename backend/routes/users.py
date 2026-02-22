@@ -67,14 +67,51 @@ def list_user_groups(user_id: int):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
+        # First check if user exists
+        cursor.execute("SELECT user_id FROM Users WHERE user_id = ?", user_id)
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail="User not found")
+        
         cursor.execute("""
-            SELECT g.group_id, g.group_name
+            SELECT g.group_id, g.group_name, g.creator_user_id, g.group_code
             FROM GroupMemberships gm
             JOIN Groups g ON gm.group_id = g.group_id
             WHERE gm.user_id = ?
         """, user_id)
         rows = cursor.fetchall()
+        
+        groups = []
+        for group_id, group_name, creator_id, group_code in rows:
+            is_creator = (creator_id == user_id)
+            
+            # Fetch members for this group
+            cursor.execute("""
+                SELECT u.user_id, u.name
+                FROM GroupMemberships gm
+                JOIN Users u ON gm.user_id = u.user_id
+                WHERE gm.group_id = ?
+            """, group_id)
+            members_rows = cursor.fetchall()
+            members = []
+            for member_user_id, member_name in members_rows:
+                members.append({
+                    "user_id": str(member_user_id),
+                    "name": member_name,
+                    "is_creator": (member_user_id == creator_id)
+                })
+            
+            groups.append({
+                "group_id": str(group_id),
+                "name": group_name,
+                "creator_id": str(creator_id),
+                "is_creator": is_creator,
+                "code": group_code,
+                "members": members
+            })
+    except Exception as e:
+        print(f"Error in list_user_groups: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
     finally:
         conn.close()
 
-    return [{"group_id": gid, "group_name": gname} for gid, gname in rows]
+    return groups

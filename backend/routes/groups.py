@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from database import get_db_connection # function to get a database connection
 import random # for generating random group codes
 import string # for generating random group codes
@@ -20,7 +20,7 @@ def generate_group_code(length=6):
 # POST /groups/{group_id}/change_code
 # --------
 @router.post("/{group_id}/change_code")
-def change_group_code(group_id: int, creator_user_id: int):
+def change_group_code(group_id: int, creator_user_id: int = Query(...)):
     
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -58,7 +58,7 @@ def change_group_code(group_id: int, creator_user_id: int):
 # POST /groups/create
 # --------
 @router.post("/create")
-def create_group(group_name: str, creator_user_id: int):
+def create_group(group_name: str = Query(...), creator_user_id: int = Query(...)):
     
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -77,11 +77,28 @@ def create_group(group_name: str, creator_user_id: int):
         # fetchone() retrieves the first row of the result set returned by the SQL query, which contains the generated group_id. We store this group_id in a variable for later use.
         group_id = cursor.fetchone()[0]
         
+        # Add the creator as a member of the group
+        cursor.execute("""
+            INSERT INTO GroupMemberships (group_id, user_id)
+            VALUES (?, ?)
+        """, group_id, creator_user_id)
+        
+        # Get the creator's name for the response
+        cursor.execute("SELECT name FROM Users WHERE user_id = ?", creator_user_id)
+        creator_name = cursor.fetchone()[0]
+        
         conn.commit() # commit the transaction
     finally:
         conn.close() # close the database connection
     
-    return {"group_id": group_id, "group_code": group_code}
+    return {
+        "group_id": str(group_id),
+        "name": group_name,
+        "creator_id": str(creator_user_id),
+        "is_creator": True,
+        "code": group_code,
+        "members": [{"user_id": str(creator_user_id), "name": creator_name, "is_creator": True}]
+    }
 
 # --------
 # Endpoint: Get group information including creator and members
@@ -134,13 +151,13 @@ def get_group_info(group_id: int, requester_user_id: int):
         conn.close() # always close connection
 
     # Convert the members_rows into a list of dictionaries with user_id and name for each member
-    members = [{"user_id": uid, "name": name} for uid, name in members_rows]
+    members = [{"user_id": str(uid), "name": name} for uid, name in members_rows]
 
     # Return the group information including group name, creator info, and members list
     response = {
-        "group_id": group_id,
+        "group_id": str(group_id),
         "group_name": group_name,
-        "creator": {"user_id": creator_id, "name": creator_name},
+        "creator": {"user_id": str(creator_id), "name": creator_name},
         "members": members
     }
 
@@ -155,7 +172,7 @@ def get_group_info(group_id: int, requester_user_id: int):
 # POST /groups/{group_id}/remove_member
 # --------
 @router.delete("/{group_id}/remove_member")
-def remove_member(group_id: int, creator_user_id: int, member_user_id: int):
+def remove_member(group_id: int, creator_user_id: int = Query(...), member_user_id: int = Query(...)):
     
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -191,7 +208,7 @@ def remove_member(group_id: int, creator_user_id: int, member_user_id: int):
 # POST /groups/{group_id}/join
 # --------
 @router.post("/{group_id}/join")
-def join_group(group_id: int, user_id: int, group_code: str):
+def join_group(group_id: int, user_id: int = Query(...), group_code: str = Query(...)):
     """
     Adds a user to a group if the group_code matches and the user is not already a member.
     """
@@ -224,9 +241,35 @@ def join_group(group_id: int, user_id: int, group_code: str):
             "INSERT INTO GroupMemberships (user_id, group_id) VALUES (?, ?)",
             user_id, group_id
         )
+
+        # Get full group info to return
+        cursor.execute("""
+            SELECT g.group_id, g.group_name, g.creator_user_id, g.group_code
+            FROM Groups g
+            WHERE g.group_id = ?
+        """, group_id)
+        group_row = cursor.fetchone()
+        group_id_resp, group_name, creator_id, code = group_row
+
+        # Get all members
+        cursor.execute("""
+            SELECT u.user_id, u.name FROM GroupMemberships gm
+            JOIN Users u ON gm.user_id = u.user_id
+            WHERE gm.group_id = ?
+        """, group_id)
+        members_rows = cursor.fetchall()
+        members = [{"user_id": str(uid), "name": name, "is_creator": uid == creator_id} for uid, name in members_rows]
+
         conn.commit()
 
     finally:
         conn.close()
 
-    return {"group_id": group_id, "user_id": user_id, "message": "Successfully joined the group"}
+    return {
+        "group_id": str(group_id_resp),
+        "name": group_name,
+        "creator_id": str(creator_id),
+        "is_creator": user_id == creator_id,
+        "code": code,
+        "members": members
+    }

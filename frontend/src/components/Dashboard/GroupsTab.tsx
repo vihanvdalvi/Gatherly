@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import type { Group } from '../../types/index';
 import { userAPI } from '../../services/api';
 import { GroupCard } from './GroupCard';
+import { CreateGroupModal } from './CreateGroupModal';
+import { JoinGroupModal } from './JoinGroupModal';
 import '../../styles/components.css';
 
 interface GroupsTabProps {
@@ -14,6 +16,8 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ userId, selectedGroup, onS
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showJoinModal, setShowJoinModal] = useState(false);
 
   useEffect(() => {
     const fetchGroups = async () => {
@@ -22,9 +26,18 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ userId, selectedGroup, onS
         const response = await userAPI.listGroups(userId);
         setGroups(response.data);
         setError(null);
-      } catch (err) {
-        setError('Failed to load groups');
-        console.error(err);
+      } catch (err: any) {
+        console.error('Failed to load groups:', {
+          status: err.response?.status,
+          statusText: err.response?.statusText,
+          data: err.response?.data,
+          message: err.message,
+        });
+        setError(
+          err.response?.data?.detail ||
+          err.response?.data?.message ||
+          'Failed to load groups'
+        );
       } finally {
         setLoading(false);
       }
@@ -33,17 +46,32 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ userId, selectedGroup, onS
     fetchGroups();
   }, [userId]);
 
+  const handleGroupCreated = (newGroup: Group) => {
+    setGroups([...groups, newGroup]);
+    onSelectGroup(newGroup);
+  };
+
+  const handleGroupJoined = (group: Group) => {
+    setGroups([...groups, group]);
+    onSelectGroup(group);
+  };
+
   if (loading) {
     return <div style={{ textAlign: 'center', padding: 'var(--spacing-xl)' }}>Loading groups...</div>;
   }
 
   return (
     <div>
-      <div style={{ marginBottom: 'var(--spacing-lg)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ marginBottom: 'var(--spacing-lg)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--spacing-md)' }}>
         <h2 style={{ margin: 0 }}>Your Groups</h2>
-        <button className="btn btn-primary btn-sm">
-          + Create Group
-        </button>
+        <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
+          <button className="btn btn-primary btn-sm" onClick={() => setShowCreateModal(true)}>
+            + Create Group
+          </button>
+          <button className="btn btn-secondary btn-sm" onClick={() => setShowJoinModal(true)}>
+            Join Group
+          </button>
+        </div>
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
@@ -80,6 +108,18 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ userId, selectedGroup, onS
           ))}
         </div>
       )}
+
+      <CreateGroupModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onGroupCreated={handleGroupCreated}
+      />
+
+      <JoinGroupModal
+        isOpen={showJoinModal}
+        onClose={() => setShowJoinModal(false)}
+        onGroupJoined={handleGroupJoined}
+      />
     </div>
   );
 };

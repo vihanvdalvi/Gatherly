@@ -8,6 +8,16 @@ interface ScheduleTableProps {
   userId: string;
 }
 
+const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+// Convert seconds past 7:00 AM back to time string (HH:MM)
+const secondsToTime = (seconds: number): string => {
+  const baseHour = 7;
+  const hours = Math.floor(seconds / 3600) + baseHour;
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+};
+
 export const ScheduleTable: React.FC<ScheduleTableProps> = ({ userId }) => {
   const [slots, setSlots] = useState<ScheduleSlot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,20 +99,22 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({ userId }) => {
           <table className="table">
             <thead>
               <tr>
-                <th>Day/Date</th>
+                <th>Day of Week</th>
                 <th>Start Time</th>
                 <th>End Time</th>
                 <th>Location</th>
+                <th>Purpose</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {slots.map((slot) => (
                 <tr key={slot.availability_id}>
-                  <td>{slot.day_of_week || new Date(slot.start_time).toLocaleDateString()}</td>
-                  <td>{new Date(slot.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                  <td>{new Date(slot.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                  <td>{DAYS_OF_WEEK[slot.day_of_week] || 'Unknown'}</td>
+                  <td>{secondsToTime(slot.start_seconds)}</td>
+                  <td>{secondsToTime(slot.end_seconds)}</td>
                   <td>{slot.location}</td>
+                  <td>{slot.purpose || '-'}</td>
                   <td>
                     <button
                       className="btn btn-sm btn-danger"

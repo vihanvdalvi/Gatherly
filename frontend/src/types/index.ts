@@ -26,16 +26,18 @@ export interface GroupMember {
 export interface ScheduleSlot {
   availability_id: string;
   user_id: string;
-  start_time: string;
-  end_time: string;
+  day_of_week: number;
+  start_seconds: number;
+  end_seconds: number;
   location: string;
-  day_of_week?: string;
+  purpose?: string;
 }
-
 export interface AddScheduleSlot {
-  start_time: string;
-  end_time: string;
+  day_of_week: number;
+  start_seconds: number;
+  end_seconds: number;
   location: string;
+  purpose?: string;
 }
 
 // Algorithm/Best Meeting Types

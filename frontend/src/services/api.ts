@@ -46,11 +46,11 @@ export const userAPI = {
 
 // ============ GROUPS ENDPOINTS ============
 export const groupAPI = {
-  create: (name: string) =>
-    apiClient.post<Group>('/groups/create', { name }),
+  create: (name: string, creatorUserId: string) =>
+    apiClient.post<Group>('/groups/create', null, { params: { group_name: name, creator_user_id: creatorUserId } }),
 
-  join: (groupId: string, code: string) =>
-    apiClient.post<Group>(`/groups/${groupId}/join`, { code }),
+  join: (groupId: string, code: string, userId: string) =>
+    apiClient.post<Group>(`/groups/${groupId}/join`, null, { params: { user_id: userId, group_code: code } }),
 
   displayInfo: (groupId: string) =>
     apiClient.get<Group>(`/groups/${groupId}/displayInfo`),
@@ -58,9 +58,9 @@ export const groupAPI = {
   changeCode: (groupId: string) =>
     apiClient.post(`/groups/${groupId}/change_code`, {}),
 
-  removeMember: (groupId: string, memberId: string) =>
+  removeMember: (groupId: string, creatorUserId: string, memberUserId: string) =>
     apiClient.delete(`/groups/${groupId}/remove_member`, {
-      data: { member_id: memberId },
+      params: { creator_user_id: creatorUserId, member_user_id: memberUserId },
     }),
 };
 
@@ -73,10 +73,10 @@ export const scheduleAPI = {
     apiClient.post<ScheduleSlot>(`/schedule/${userId}/addTimeSlot`, payload),
 
   deleteSlot: (availabilityId: string) =>
-    apiClient.delete(`/schedule/availability/${availabilityId}`),
+    apiClient.delete(`/schedule/${availabilityId}`),
 
   getLocationsList: () =>
-    apiClient.get<string[]>('/schedule/locations'),
+    apiClient.get<{ locations: string[] }>('/graph/all_locations'),
 };
 
 // ============ ALGORITHM ENDPOINTS ============
