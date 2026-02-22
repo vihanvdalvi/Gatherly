@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { authAPI } from '../../services/api';
+import React, { useState, useEffect } from 'react';
+import { authAPI, scheduleAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import type { AuthResponse } from '../../types/index';
 import '../../styles/components.css';
@@ -14,9 +14,39 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSuccess }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [homeLocation, setHomeLocation] = useState('');
+  const [locations, setLocations] = useState<string[]>([]);
+  const [filteredLocations, setFilteredLocations] = useState<string[]>([]);
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { setUser } = useAuth();
+
+  // Fetch available locations on component mount
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const response = await scheduleAPI.getLocationsList();
+        setLocations(response.data.locations || []);
+      } catch (err) {
+        console.error('Failed to fetch locations:', err);
+      }
+    };
+    fetchLocations();
+  }, []);
+
+  // Filter locations based on input
+  useEffect(() => {
+    if (homeLocation.trim()) {
+      const filtered = locations.filter((loc) =>
+        loc.toLowerCase().includes(homeLocation.toLowerCase())
+      );
+      setFilteredLocations(filtered);
+      setShowLocationDropdown(true);
+    } else {
+      setFilteredLocations(locations);
+      setShowLocationDropdown(false);
+    }
+  }, [homeLocation, locations]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,16 +125,54 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSuccess }) => {
         />
       </div>
 
-      <div className="form-group">
+      <div className="form-group" style={{ position: 'relative' }}>
         <label className="form-label">Home Location</label>
         <input
           type="text"
           className="form-input"
-          placeholder="e.g., Library, Downtown"
+          placeholder="Start typing to search locations..."
           value={homeLocation}
           onChange={(e) => setHomeLocation(e.target.value)}
+          onFocus={() => homeLocation && setShowLocationDropdown(true)}
+          autoComplete="off"
           required
         />
+        {showLocationDropdown && filteredLocations.length > 0 && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0,
+              backgroundColor: 'white',
+              border: '1px solid var(--neutral-300)',
+              borderRadius: 'var(--radius-md)',
+              maxHeight: '200px',
+              overflowY: 'auto',
+              zIndex: 1000,
+              marginTop: '4px',
+            }}
+          >
+            {filteredLocations.map((loc) => (
+              <div
+                key={loc}
+                onClick={() => {
+                  setHomeLocation(loc);
+                  setShowLocationDropdown(false);
+                }}
+                style={{
+                  padding: 'var(--spacing-sm) var(--spacing-md)',
+                  cursor: 'pointer',
+                  borderBottom: '1px solid var(--neutral-200)',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--neutral-50)')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'white')}
+              >
+                {loc}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="form-group">
