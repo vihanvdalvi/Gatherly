@@ -12,11 +12,12 @@ campus_graph = CampusGraph()
 
 # include the routers for different API endpoints
 # this allows us to organize our API endpoints into separate modules (users, groups, schedule, algorithm) while still having them all accessible under the main FastAPI application
-from routes import users, groups, schedule, algorithm
+from routes import users, groups, schedule, algorithm, graph
 app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(groups.router, prefix="/groups", tags=["groups"])
 app.include_router(schedule.router, prefix="/schedule", tags=["schedule"])
 app.include_router(algorithm.router, prefix="/algorithm", tags=["algorithm"])
+app.include_router(graph.router, prefix="/graph", tags=["graph"])
 
 @app.get("/", response_class=HTMLResponse)
 async def root():

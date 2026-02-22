@@ -73,6 +73,17 @@ class CampusGraph:
             for node in path_nodes
         ]
     
+    # ------
+    # Endpoint: Get all locations on campus
+    # GET /graph/all_locations
+    # ------
+    def get_all_locations(self) -> list[str]:
+        """
+        Returns a list of all nodes/locations in the campus graph.
+        Can be used to populate a frontend search/dropdown component.
+        """
+        return list(self.graph.nodes)
+    
     def best_meeting_building(self, user_starts: list[str], candidate_buildings: list[str] = None):
         """
         Score each candidate building by sum of shortest path from all users
