@@ -167,7 +167,7 @@ def get_best_meeting_times(group_id: int, day_of_week: int, meeting_duration: in
                 required_time = meeting_duration * 60 + max_walk
                 print(f"[DEBUG] Interval {start}-{end} ({seconds_to_hhmm(start)}-{seconds_to_hhmm(end)}): available={available_time}s, required={required_time}s (duration={meeting_duration*60}s + max_walk={max_walk}s)")
 
-                # Only include interval if enough time for meeting + max walk
+                # Only include in candidate_slots if enough time for meeting + max walk
                 if available_time >= required_time:
                     candidate_slots.append(CommonSlotWithLocationsWithName(
                         start_seconds=start,

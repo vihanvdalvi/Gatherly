@@ -10,7 +10,7 @@ app = FastAPI(title = "Gatherly API")
 # Add CORS middleware to allow frontend to communicate with backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Allow frontend origin (adjust if needed)
+    allow_origins=["http://localhost:5173", "http://localhost:5174"],  # Allow both dev ports
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
