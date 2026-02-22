@@ -38,9 +38,14 @@ export const LoginSignupPage: React.FC<LoginSignupPageProps> = ({ onAuthSuccess 
             borderBottom: '2px solid var(--neutral-200)',
           }}
         >
-          <h1 style={{ margin: '0 0 var(--spacing-md) 0', color: 'var(--primary)' }}>
-            Gatherly 🎯
-          </h1>
+          <img
+            src="/gatherly_logo.png"
+            alt="Gatherly Logo"
+            style={{
+              height: '240px',
+              marginBottom: '2px',
+            }}
+          />
           <p style={{ margin: 0, color: 'var(--neutral-600)' }}>
             Find the perfect time to meet together
           </p>
