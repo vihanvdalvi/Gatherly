@@ -110,23 +110,44 @@ class CampusGraph:
     
     def best_meeting_building(self, user_starts: list[str], candidate_buildings: list[str] = None):
         """
-        Score each candidate building by sum of shortest path from all users
+        Score each candidate building by fairness: prioritizes balanced travel distribution.
+        
+        Instead of minimizing total travel time (which unfairly favors buildings where users already are),
+        this scores buildings based on how equitably distributed the travel times are across all users.
+        
+        Scoring: fairness_score = average_travel_time + 0.5 * standard_deviation
+        This penalizes buildings where one person travels much more than others.
+        
         user_starts: list of starting locations for each user
-        candiddate_buildings: optional list of buildings to evaluate (default: all nodes in the graph)
-        Returns: list of tuples (building_name, total_seconds) sorted by total_seconds ascending
+        candidate_buildings: optional list of buildings to evaluate (default: all nodes in the graph)
+        Returns: list of tuples (building_name, fairness_score) sorted by fairness_score ascending
         """
         
-        # scores will hold tuples of (building_name, total_seconds) for each candidate building
         scores = []
         for b in candidate_buildings:
-            # total_seconds is the sum of shortest times from each user's starting location to this building
-            total_time = 0
-            # for each user's starting location, get the shortest time to this building and add to total_time
+            distances = []
+            # Calculate distance from each user's starting location to this building
             for start in user_starts:
-                total_time += self.get_shortest_time(start, b)
-            scores.append((b, total_time))
+                distance = self.get_shortest_time(start, b)
+                distances.append(distance)
+            
+            if not distances:
+                scores.append((b, 0))
+                continue
+            
+            # Calculate metrics for fairness scoring
+            avg_distance = sum(distances) / len(distances)
+            variance = sum((d - avg_distance) ** 2 for d in distances) / len(distances)
+            std_dev = variance ** 0.5
+            
+            # Fairness score: average travel + weighted penalty for inequality
+            # This way, buildings where all users travel ~5 min beat buildings where
+            # one person travels 0 min and another travels 10 min (total = 10 min)
+            fairness_score = avg_distance + 0.5 * std_dev
+            
+            scores.append((b, fairness_score))
         
-        # sort by total travel time ascending
+        # Sort by fairness score ascending (lower = better)
         scores.sort(key=lambda x: x[1])
         return scores
         

@@ -7,12 +7,33 @@ interface BestMeetingResultsProps {
 }
 
 export const BestMeetingResults: React.FC<BestMeetingResultsProps> = ({ result }) => {
-  const [expandedSlot, setExpandedSlot] = useState<number | null>(null);
+  const [expandedSlots, setExpandedSlots] = useState<Set<number>>(new Set());
+
+  // Debug: log the result
+  console.log('[DEBUG] BestMeetingResults received:', result);
+  console.log('[DEBUG] Total slots:', result.slots.length);
+  result.slots.forEach((slot, idx) => {
+    console.log(`[DEBUG] Slot ${idx}:`, {
+      time: `${slot.start_hhmm} - ${slot.end_hhmm}`,
+      location: slot.meeting_location,
+      users: slot.user_locations.length,
+    });
+  });
 
   // Helper function to get day name from number
   const getDayName = (dayNum: number): string => {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     return days[dayNum] || 'Unknown';
+  };
+
+  const toggleSlot = (index: number) => {
+    const newExpanded = new Set(expandedSlots);
+    if (newExpanded.has(index)) {
+      newExpanded.delete(index);
+    } else {
+      newExpanded.add(index);
+    }
+    setExpandedSlots(newExpanded);
   };
 
   if (!result.slots || result.slots.length === 0) {
@@ -134,64 +155,101 @@ export const BestMeetingResults: React.FC<BestMeetingResultsProps> = ({ result }
           </div>
           <div className="card-body">
             <div style={{ display: 'grid', gap: 'var(--spacing-md)' }}>
-              {result.slots.map((slot: CommonSlot, index: number) => (
-                <div
-                  key={index}
-                  style={{
-                    padding: 'var(--spacing-md)',
-                    backgroundColor: 'var(--neutral-50)',
-                    borderRadius: 'var(--radius-md)',
-                    borderLeft: '4px solid var(--primary)',
-                    cursor: 'pointer',
-                    transition: 'background-color 0.2s',
-                  }}
-                  onClick={() => setExpandedSlot(expandedSlot === index ? null : index)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--neutral-100)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--neutral-50)';
-                  }}
-                >
-                  <div
+              {result.slots.map((slot: CommonSlot, index: number) => {
+                const isExpanded = expandedSlots.has(index);
+                return (
+                  <div 
+                    key={index}
                     style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
+                      border: '1px solid var(--neutral-200)',
+                      borderRadius: 'var(--radius-md)',
+                      overflow: 'hidden',
                     }}
                   >
-                    <div>
-                      <p style={{ margin: '0 0 var(--spacing-xs) 0', fontWeight: '600' }}>
-                        {slot.start_hhmm} - {slot.end_hhmm}
-                      </p>
-                      <p style={{ margin: 0, color: 'var(--neutral-600)', fontSize: 'var(--font-sm)' }}>
-                        Duration: {Math.round((slot.end_seconds - slot.start_seconds) / 60)} minutes
-                      </p>
-                    </div>
-                    <span style={{ fontSize: 'var(--font-lg)' }}>
-                      {expandedSlot === index ? '▼' : '▶'}
-                    </span>
-                  </div>
-
-                  {expandedSlot === index && (
-                    <div style={{ marginTop: 'var(--spacing-md)', paddingTop: 'var(--spacing-md)', borderTop: '1px solid var(--neutral-200)' }}>
-                      <p style={{ margin: '0 0 var(--spacing-sm) 0', fontWeight: '500', fontSize: 'var(--font-sm)' }}>
-                        Meeting Location: <strong>{slot.meeting_location}</strong>
-                      </p>
-                      <p style={{ margin: '0 0 var(--spacing-sm) 0', fontWeight: '500', fontSize: 'var(--font-sm)' }}>
-                        Travel times:
-                      </p>
-                      <div style={{ display: 'grid', gap: 'var(--spacing-xs)' }}>
-                        {slot.user_locations.map((user, idx) => (
-                          <p key={idx} style={{ margin: 0, color: 'var(--neutral-700)', fontSize: 'var(--font-sm)' }}>
-                            • {user.name}: {Math.round(user.walk_time / 60)} min from {user.location}
-                          </p>
-                        ))}
+                    <button
+                      type="button"
+                      onClick={() => toggleSlot(index)}
+                      style={{
+                        width: '100%',
+                        padding: 'var(--spacing-md)',
+                        backgroundColor: isExpanded ? 'var(--primary)' : 'var(--neutral-50)',
+                        color: isExpanded ? 'white' : 'inherit',
+                        border: 'none',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s',
+                        textAlign: 'left',
+                        fontSize: 'inherit',
+                        fontFamily: 'inherit',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isExpanded) {
+                          e.currentTarget.style.backgroundColor = 'var(--neutral-100)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = isExpanded ? 'var(--primary)' : 'var(--neutral-50)';
+                      }}
+                    >
+                      <div>
+                        <p style={{ margin: '0 0 var(--spacing-xs) 0', fontWeight: '600' }}>
+                          {slot.start_hhmm} - {slot.end_hhmm}
+                        </p>
+                        <p style={{ margin: 0, color: isExpanded ? 'rgba(255,255,255,0.9)' : 'var(--neutral-600)', fontSize: 'var(--font-sm)' }}>
+                          Duration: {Math.round((slot.end_seconds - slot.start_seconds) / 60)} minutes
+                        </p>
                       </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+                      <span style={{ fontSize: 'var(--font-lg)', marginLeft: 'var(--spacing-md)' }}>
+                        {isExpanded ? '▼' : '▶'}
+                      </span>
+                    </button>
+
+                    {isExpanded && (
+                      <div
+                        style={{
+                          padding: 'var(--spacing-md)',
+                          backgroundColor: 'var(--primary)',
+                          color: 'white',
+                          borderTop: '1px solid rgba(255,255,255,0.2)',
+                          pointerEvents: 'none',
+                        }}
+                      >
+                        <div style={{ marginBottom: 'var(--spacing-md)' }}>
+                          <p style={{ margin: '0 0 var(--spacing-xs) 0', fontWeight: '500', fontSize: 'var(--font-sm)' }}>
+                            📍 Meeting Location:
+                          </p>
+                          <p style={{ margin: 0, fontSize: 'var(--font-base)', fontWeight: '600' }}>
+                            {slot.meeting_location}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p style={{ margin: '0 0 var(--spacing-sm) 0', fontWeight: '500', fontSize: 'var(--font-sm)' }}>
+                            🚶 Member Travel Times:
+                          </p>
+                          <div style={{ display: 'grid', gap: 'var(--spacing-xs)' }}>
+                            {slot.user_locations.map((user, idx) => (
+                              <div key={idx} style={{ padding: 'var(--spacing-xs)', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 'var(--radius-sm)' }}>
+                                <p style={{ margin: '0 0 var(--spacing-xs) 0', fontWeight: '500', fontSize: 'var(--font-sm)' }}>
+                                  {user.name}
+                                </p>
+                                <p style={{ margin: 0, fontSize: 'var(--font-sm)' }}>
+                                  From: {user.location}
+                                </p>
+                                <p style={{ margin: '0', fontSize: 'var(--font-sm)', fontWeight: '600' }}>
+                                  ⏱️ {Math.round(user.walk_time / 60)} min walk
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
