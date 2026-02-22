@@ -28,6 +28,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout }) => {
   const { user, selectedGroup, setSelectedGroup } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('groups');
   const [bestMeetingResult, setBestMeetingResult] = useState<BestMeetingResult | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<any>(null);
   const [calculatingBestMeeting, setCalculatingBestMeeting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dayOfWeek, setDayOfWeek] = useState<number>(1); // Monday
@@ -54,6 +55,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout }) => {
       );
       console.log('✅ Algorithm API response:', response.data);
       setBestMeetingResult(response.data);
+      setSelectedSlot(response.data.slots[0]);
       setActiveTab('results');
     } catch (err: any) {
       console.error('❌ Algorithm API error:', {
@@ -217,7 +219,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout }) => {
           {activeTab === 'schedule' && <ScheduleTab />}
 
           {activeTab === 'results' && bestMeetingResult && (
-            <MeetingVisualization result={bestMeetingResult} />
+            <MeetingVisualization
+              result={bestMeetingResult}
+              selectedSlot={selectedSlot}
+              onSlotSelect={(slot) => {
+                console.log('Selected slot:', slot);
+                setSelectedSlot(slot);
+              }}
+            />
           )}
         </div>
       </div>

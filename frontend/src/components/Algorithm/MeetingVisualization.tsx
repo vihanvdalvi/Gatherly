@@ -5,6 +5,7 @@ import '../../styles/components.css';
 interface MeetingVisualizationProps {
   result: BestMeetingResult;
   selectedSlot?: CommonSlot;
+  onSlotSelect?: (slot: CommonSlot) => void;
 }
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -29,6 +30,7 @@ const secondsToMinutes = (seconds: number): string => {
 export const MeetingVisualization: React.FC<MeetingVisualizationProps> = ({
   result,
   selectedSlot,
+  onSlotSelect,
 }) => {
   const slot = selectedSlot || result.slots[0];
 
@@ -191,6 +193,7 @@ export const MeetingVisualization: React.FC<MeetingVisualizationProps> = ({
               {result.slots.map((s, idx) => (
                 <div
                   key={idx}
+                  onClick={() => onSlotSelect?.(s)}
                   style={{
                     padding: 'var(--spacing-md)',
                     backgroundColor: s === slot ? 'var(--neutral-100)' : 'var(--neutral-50)',
