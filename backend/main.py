@@ -1,10 +1,20 @@
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
 from database import get_db_connection
 from graph.graph_utils import CampusGraph # import the graph utilities to initialize the campus graph 
 
 # create the main FastAPI application instance
 app = FastAPI(title = "Gatherly API")
+
+# Add CORS middleware to allow frontend to communicate with backend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # load the campus graph when the application starts
 # can be used effeciently for all graph-related queries without needing to reload or recompute paths each time

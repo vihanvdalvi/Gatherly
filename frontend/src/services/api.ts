@@ -1,0 +1,99 @@
+import axios from 'axios';
+import { getToken } from '../utils/localStorage';
+import type {
+  LoginPayload,
+  SignupPayload,
+  AuthResponse,
+  Group,
+  ScheduleSlot,
+  AddScheduleSlot,
+  BestMeetingResult,
+} from '../types/index';
+
+const API_BASE_URL = 'http://localhost:8000';
+
+// Create axios instance with default configuration
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Add token to request headers if available
+apiClient.interceptors.request.use((config) => {
+  const token = getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// ============ AUTH ENDPOINTS ============
+export const authAPI = {
+  login: (payload: LoginPayload) =>
+    apiClient.post<AuthResponse>('/users/login', payload),
+
+  signup: (payload: SignupPayload) =>
+    apiClient.post<AuthResponse>('/users/signup', payload),
+};
+
+// ============ USER ENDPOINTS ============
+export const userAPI = {
+  listGroups: (userId: string) =>
+    apiClient.get<Group[]>(`/users/${userId}/list-groups`),
+};
+
+// ============ GROUPS ENDPOINTS ============
+export const groupAPI = {
+  create: (name: string) =>
+    apiClient.post<Group>('/groups/create', { name }),
+
+  join: (groupId: string, code: string) =>
+    apiClient.post<Group>(`/groups/${groupId}/join`, { code }),
+
+  displayInfo: (groupId: string) =>
+    apiClient.get<Group>(`/groups/${groupId}/displayInfo`),
+
+  changeCode: (groupId: string) =>
+    apiClient.post(`/groups/${groupId}/change_code`, {}),
+
+  removeMember: (groupId: string, memberId: string) =>
+    apiClient.delete(`/groups/${groupId}/remove_member`, {
+      data: { member_id: memberId },
+    }),
+};
+
+// ============ SCHEDULE ENDPOINTS ============
+export const scheduleAPI = {
+  getUserSchedule: (userId: string) =>
+    apiClient.get<ScheduleSlot[]>(`/schedule/${userId}`),
+
+  addTimeSlot: (userId: string, payload: AddScheduleSlot) =>
+    apiClient.post<ScheduleSlot>(`/schedule/${userId}/addTimeSlot`, payload),
+
+  deleteSlot: (availabilityId: string) =>
+    apiClient.delete(`/schedule/availability/${availabilityId}`),
+
+  getLocationsList: () =>
+    apiClient.get<string[]>('/schedule/locations'),
+};
+
+// ============ ALGORITHM ENDPOINTS ============
+export const algorithmAPI = {
+  getBestMeetingTimes: (groupId: string) =>
+    apiClient.get<BestMeetingResult>(`/algorithm/group/${groupId}/best_meeting_times`),
+};
+
+// ============ GRAPH ENDPOINTS ============
+export const graphAPI = {
+  getGraph: () =>
+    apiClient.get('/graph'),
+
+  getPath: (location1: string, location2: string) =>
+    apiClient.get('/graph/path', {
+      params: { start: location1, end: location2 },
+    }),
+};
+
+export default apiClient;
