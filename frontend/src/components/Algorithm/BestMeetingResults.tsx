@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { BestMeetingResult } from '../../types/index';
+import type { BestMeetingResult, CommonSlot } from '../../types/index';
 import '../../styles/components.css';
 
 interface BestMeetingResultsProps {
@@ -7,38 +7,61 @@ interface BestMeetingResultsProps {
 }
 
 export const BestMeetingResults: React.FC<BestMeetingResultsProps> = ({ result }) => {
-  const [expandedInterval, setExpandedInterval] = useState<number | null>(null);
+  const [expandedSlot, setExpandedSlot] = useState<number | null>(null);
 
+  // Helper function to get day name from number
+  const getDayName = (dayNum: number): string => {
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return days[dayNum] || 'Unknown';
+  };
+
+  if (!result.slots || result.slots.length === 0) {
+    return (
+      <div className="card" style={{ backgroundColor: '#fee2e2', borderColor: '#fca5a5' }}>
+        <div className="card-header">
+          <h3 className="card-title" style={{ color: 'var(--error)' }}>
+            ✗ No Available Meeting Times
+          </h3>
+        </div>
+        <div className="card-body">
+          <p style={{ margin: 0, color: 'var(--neutral-700)' }}>
+            No common free time found for all group members on {getDayName(result.day_of_week)}.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const bestSlot = result.slots[0];
+  
   return (
     <div style={{ display: 'grid', gap: 'var(--spacing-lg)' }}>
       {/* Suggested Meeting */}
-      {result.suggested_time && (
-        <div className="card" style={{ backgroundColor: '#d1fae5', borderColor: '#6ee7b7' }}>
-          <div className="card-header">
-            <h3 className="card-title" style={{ color: 'var(--success)' }}>
-              ✓ Suggested Meeting Time
-            </h3>
+      <div className="card" style={{ backgroundColor: '#d1fae5', borderColor: '#6ee7b7' }}>
+        <div className="card-header">
+          <h3 className="card-title" style={{ color: 'var(--success)' }}>
+            ✓ Suggested Meeting Time
+          </h3>
+        </div>
+        <div className="card-body">
+          <div>
+            <p style={{ margin: '0 0 var(--spacing-sm) 0', fontWeight: '500', color: 'var(--neutral-700)' }}>
+              Date & Day:
+            </p>
+            <p style={{ margin: 0, fontSize: 'var(--font-lg)', fontWeight: '600' }}>
+              {getDayName(result.day_of_week)}
+            </p>
           </div>
-          <div className="card-body">
-            <div>
-              <p style={{ margin: '0 0 var(--spacing-sm) 0', fontWeight: '500', color: 'var(--neutral-700)' }}>
-                Date & Day:
-              </p>
-              <p style={{ margin: 0, fontSize: 'var(--font-lg)', fontWeight: '600' }}>
-                {result.suggested_time.day_of_week}
-              </p>
-            </div>
-            <div style={{ marginTop: 'var(--spacing-md)' }}>
-              <p style={{ margin: '0 0 var(--spacing-sm) 0', fontWeight: '500', color: 'var(--neutral-700)' }}>
-                Time:
-              </p>
-              <p style={{ margin: 0, fontSize: 'var(--font-lg)', fontWeight: '600' }}>
-                {result.suggested_time.start_time} - {result.suggested_time.end_time}
-              </p>
-            </div>
+          <div style={{ marginTop: 'var(--spacing-md)' }}>
+            <p style={{ margin: '0 0 var(--spacing-sm) 0', fontWeight: '500', color: 'var(--neutral-700)' }}>
+              Time:
+            </p>
+            <p style={{ margin: 0, fontSize: 'var(--font-lg)', fontWeight: '600' }}>
+              {bestSlot.start_hhmm} - {bestSlot.end_hhmm}
+            </p>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Suggested Location */}
       <div className="card">
@@ -57,22 +80,61 @@ export const BestMeetingResults: React.FC<BestMeetingResultsProps> = ({ result }
               fontWeight: '600',
             }}
           >
-            {result.suggested_location}
+            {bestSlot.meeting_location}
           </div>
         </div>
       </div>
 
-      {/* Free Intervals */}
+      {/* Walking Times Info */}
       <div className="card">
         <div className="card-header">
-          <h3 className="card-title">⏱️ All Free Intervals</h3>
+          <h3 className="card-title">🚶 Member Travel Times to {bestSlot.meeting_location}</h3>
         </div>
         <div className="card-body">
-          {result.free_intervals.length === 0 ? (
-            <p style={{ color: 'var(--neutral-500)', margin: 0 }}>No common free time found for all members.</p>
-          ) : (
+          <div style={{ display: 'grid', gap: 'var(--spacing-md)' }}>
+            {bestSlot.user_locations.map((user, idx) => (
+              <div
+                key={idx}
+                style={{
+                  padding: 'var(--spacing-md)',
+                  backgroundColor: 'var(--neutral-50)',
+                  borderRadius: 'var(--radius-md)',
+                  borderLeft: '4px solid var(--primary)',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <p style={{ margin: '0 0 var(--spacing-xs) 0', fontWeight: '600' }}>
+                      {user.name}
+                    </p>
+                    <p style={{ margin: 0, color: 'var(--neutral-600)', fontSize: 'var(--font-sm)' }}>
+                      From: {user.location}
+                    </p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ margin: 0, fontWeight: '600', fontSize: 'var(--font-lg)' }}>
+                      {Math.round(user.walk_time / 60)} min
+                    </p>
+                    <p style={{ margin: 0, color: 'var(--neutral-600)', fontSize: 'var(--font-sm)' }}>
+                      {user.walk_time}s
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* All Available Time Slots */}
+      {result.slots.length > 1 && (
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">⏱️ All Available Time Slots ({result.slots.length} slots)</h3>
+          </div>
+          <div className="card-body">
             <div style={{ display: 'grid', gap: 'var(--spacing-md)' }}>
-              {result.free_intervals.map((interval, index) => (
+              {result.slots.map((slot: CommonSlot, index: number) => (
                 <div
                   key={index}
                   style={{
@@ -81,8 +143,15 @@ export const BestMeetingResults: React.FC<BestMeetingResultsProps> = ({ result }
                     borderRadius: 'var(--radius-md)',
                     borderLeft: '4px solid var(--primary)',
                     cursor: 'pointer',
+                    transition: 'background-color 0.2s',
                   }}
-                  onClick={() => setExpandedInterval(expandedInterval === index ? null : index)}
+                  onClick={() => setExpandedSlot(expandedSlot === index ? null : index)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--neutral-100)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--neutral-50)';
+                  }}
                 >
                   <div
                     style={{
@@ -93,36 +162,30 @@ export const BestMeetingResults: React.FC<BestMeetingResultsProps> = ({ result }
                   >
                     <div>
                       <p style={{ margin: '0 0 var(--spacing-xs) 0', fontWeight: '600' }}>
-                        {interval.day_of_week}
+                        {slot.start_hhmm} - {slot.end_hhmm}
                       </p>
-                      <p style={{ margin: 0, color: 'var(--neutral-600)' }}>
-                        {interval.start_time} - {interval.end_time}
+                      <p style={{ margin: 0, color: 'var(--neutral-600)', fontSize: 'var(--font-sm)' }}>
+                        Duration: {Math.round((slot.end_seconds - slot.start_seconds) / 60)} minutes
                       </p>
                     </div>
                     <span style={{ fontSize: 'var(--font-lg)' }}>
-                      {expandedInterval === index ? '▼' : '▶'}
+                      {expandedSlot === index ? '▼' : '▶'}
                     </span>
                   </div>
 
-                  {expandedInterval === index && (
+                  {expandedSlot === index && (
                     <div style={{ marginTop: 'var(--spacing-md)', paddingTop: 'var(--spacing-md)', borderTop: '1px solid var(--neutral-200)' }}>
                       <p style={{ margin: '0 0 var(--spacing-sm) 0', fontWeight: '500', fontSize: 'var(--font-sm)' }}>
-                        Available members:
+                        Meeting Location: <strong>{slot.meeting_location}</strong>
                       </p>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-sm)' }}>
-                        {interval.members_available.map((member) => (
-                          <span
-                            key={member}
-                            style={{
-                              backgroundColor: 'var(--primary)',
-                              color: 'white',
-                              padding: '0.25rem 0.75rem',
-                              borderRadius: 'var(--radius-md)',
-                              fontSize: 'var(--font-sm)',
-                            }}
-                          >
-                            {member}
-                          </span>
+                      <p style={{ margin: '0 0 var(--spacing-sm) 0', fontWeight: '500', fontSize: 'var(--font-sm)' }}>
+                        Travel times:
+                      </p>
+                      <div style={{ display: 'grid', gap: 'var(--spacing-xs)' }}>
+                        {slot.user_locations.map((user, idx) => (
+                          <p key={idx} style={{ margin: 0, color: 'var(--neutral-700)', fontSize: 'var(--font-sm)' }}>
+                            • {user.name}: {Math.round(user.walk_time / 60)} min from {user.location}
+                          </p>
                         ))}
                       </div>
                     </div>
@@ -130,20 +193,9 @@ export const BestMeetingResults: React.FC<BestMeetingResultsProps> = ({ result }
                 </div>
               ))}
             </div>
-          )}
+          </div>
         </div>
-      </div>
-
-      {/* Placeholder for Matplotlib Chart */}
-      <div className="card">
-        <div className="card-header">
-          <h3 className="card-title">📊 Availability Visualization</h3>
-        </div>
-        <div className="card-body" style={{ textAlign: 'center', color: 'var(--neutral-500)' }}>
-          <p style={{ margin: 0 }}>Matplotlib chart will be displayed here</p>
-          <small>(Backend returns matplotlib figure as image)</small>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

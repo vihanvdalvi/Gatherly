@@ -26,6 +26,8 @@ def get_best_meeting_times(group_id: int, day_of_week: int, meeting_duration: in
     # Import here to avoid circular imports
     from main import campus_graph
 
+    print(f"\n[DEBUG] START get_best_meeting_times: group_id={group_id}, day_of_week={day_of_week}, meeting_duration={meeting_duration}")
+
     if not (0 <= day_of_week <= 6):
         raise HTTPException(status_code=400, detail="Invalid day_of_week")
 
@@ -42,6 +44,7 @@ def get_best_meeting_times(group_id: int, day_of_week: int, meeting_duration: in
             WHERE gm.group_id = ?
         """, (group_id,))
         users = cursor.fetchall()  # list of (user_id, home_location, name)
+        print(f"[DEBUG] Found {len(users) if users else 0} users in group")
         
         if not users:
             raise HTTPException(status_code=404, detail="No users found in this group")
@@ -56,6 +59,7 @@ def get_best_meeting_times(group_id: int, day_of_week: int, meeting_duration: in
                 ORDER BY start_seconds
             """, (user_id, day_of_week))
             slots = cursor.fetchall()  # list of (start_seconds, end_seconds, location)
+            print(f"[DEBUG] User {user_id} ({name}): {len(slots)} busy slots")
 
             # Store busy slots and user info including name for later processing
             # We'll need names to show on frontend
@@ -69,6 +73,7 @@ def get_best_meeting_times(group_id: int, day_of_week: int, meeting_duration: in
         day_start = 0
         day_end = 12 * 3600  # 7 AM to 7 PM
         free_intervals = [(day_start, day_end)]
+        print(f"[DEBUG] Initial free_intervals: {free_intervals}")
 
         # --- Subtract each user's busy slots from the current free intervals ---
         for user_id, info in user_busy_slots.items():
@@ -88,61 +93,112 @@ def get_best_meeting_times(group_id: int, day_of_week: int, meeting_duration: in
                 if curr_start < free_end:
                     next_free.append((curr_start, free_end))  # remaining free interval
             free_intervals = next_free  # update free intervals for next user
+            print(f"[DEBUG] Free intervals after user {user_id}: {free_intervals}")
 
+        print(f"[DEBUG] Final free_intervals before candidate processing: {free_intervals}")
+        
         # --- For each free interval, compute walking times to all buildings ---
         candidate_slots: List[CommonSlotWithLocationsWithName] = []
         all_buildings = list(campus_graph.graph.nodes)  # all campus buildings
+        print(f"[DEBUG] All buildings available: {all_buildings}")
 
         for start, end in free_intervals:
-            user_starts = []
-            user_names = {}
+            try:
+                user_starts = []
+                user_names = {}
 
-            # Determine last known location for each user before this free interval
-            for user_id, info in user_busy_slots.items():
-                last_loc = info["home_location"]
-                for busy_start, busy_end, loc, _name in info["slots_with_names"]:
-                    if busy_end <= start:
-                        last_loc = loc
-                    else:
-                        break
-                user_starts.append(last_loc)
-                user_names[user_id] = info["name"]
+                # Determine last known location for each user before this free interval
+                for user_id, info in user_busy_slots.items():
+                    last_loc = info["home_location"]
+                    for busy_start, busy_end, loc, _name in info["slots_with_names"]:
+                        if busy_end <= start:
+                            last_loc = loc
+                        else:
+                            break
+                    user_starts.append(last_loc)
+                    user_names[user_id] = info["name"]
 
-            # Find best meeting building based on total travel time
-            best_buildings = campus_graph.best_meeting_building(user_starts, candidate_buildings=all_buildings)
-            top_building, _ = best_buildings[0]
+                # Find best meeting building based on total travel time
+                best_buildings = campus_graph.best_meeting_building(user_starts, candidate_buildings=all_buildings)
+                print(f"[DEBUG] best_buildings returned: {best_buildings}")
+                
+                if not best_buildings:
+                    print(f"[DEBUG] No best building found for user_starts: {user_starts}, skipping")
+                    continue
+                
+                top_building, _ = best_buildings[0]
 
-            # Compute individual walking times and track max walk
-            walking_times = []
-            max_walk = 0
-            for user_id, loc in zip(user_busy_slots.keys(), user_starts):
-                walk_time = campus_graph.get_shortest_time(loc, top_building)
-                path_coords = campus_graph.get_shortest_path_with_coords(loc, top_building)
-                walking_times.append(UserLocationSlotWithName(
-                    user_id=user_id,
-                    name=user_names[user_id],
-                    location=loc,
-                    walk_time=walk_time,
-                    path=[PathNode(**n) for n in path_coords] # convert dicts to pydantic
-                ))
-                if walk_time > max_walk:
-                    max_walk = walk_time
+                # Compute individual walking times and track max walk
+                walking_times = []
+                max_walk = 0
+                for user_id, loc in zip(user_busy_slots.keys(), user_starts):
+                    try:
+                        walk_time = campus_graph.get_shortest_time(loc, top_building)
+                        
+                        # Only include if walk time is valid (not infinity)
+                        if walk_time == float('inf'):
+                            print(f"[WARNING] No path found from {loc} to {top_building}, using 0 walk time")
+                            walk_time = 0
+                        
+                        path_coords = campus_graph.get_shortest_path_with_coords(loc, top_building)
+                        walking_times.append(UserLocationSlotWithName(
+                            user_id=user_id,
+                            name=user_names[user_id],
+                            location=loc,
+                            walk_time=int(walk_time),
+                            path=[PathNode(**n) for n in path_coords] # convert dicts to pydantic
+                        ))
+                        if walk_time > max_walk:
+                            max_walk = walk_time
+                        print(f"[DEBUG] User {user_id}: location={loc}, walk_time={int(walk_time)}s")
+                    except Exception as e:
+                        print(f"[WARNING] Failed to compute walking time for user {user_id} from {loc}: {e}")
+                        # Add user with 0 walk time as fallback
+                        walking_times.append(UserLocationSlotWithName(
+                            user_id=user_id,
+                            name=user_names[user_id],
+                            location=loc,
+                            walk_time=0,
+                            path=[]
+                        ))
+                        print(f"[DEBUG] User {user_id}: using fallback with 0s walk time")
 
-            # Only include interval if enough time for meeting + max walk
-            if end - start >= meeting_duration * 60 + max_walk:
-                candidate_slots.append(CommonSlotWithLocationsWithName(
-                    start_seconds=start,
-                    end_seconds=end,
-                    start_hhmm=seconds_to_hhmm(start),
-                    end_hhmm=seconds_to_hhmm(end),
-                    meeting_location=top_building,
-                    user_locations=walking_times
-                ))
+                available_time = end - start
+                required_time = meeting_duration * 60 + max_walk
+                print(f"[DEBUG] Interval {start}-{end} ({seconds_to_hhmm(start)}-{seconds_to_hhmm(end)}): available={available_time}s, required={required_time}s (duration={meeting_duration*60}s + max_walk={max_walk}s)")
 
+                # Only include interval if enough time for meeting + max walk
+                if available_time >= required_time:
+                    candidate_slots.append(CommonSlotWithLocationsWithName(
+                        start_seconds=start,
+                        end_seconds=end,
+                        start_hhmm=seconds_to_hhmm(start),
+                        end_hhmm=seconds_to_hhmm(end),
+                        meeting_location=top_building,
+                        user_locations=walking_times
+                    ))
+                    print(f"[DEBUG] ✓ Added candidate slot")
+                else:
+                    print(f"[DEBUG] ✗ Skipped interval: not enough time")
+            except Exception as e:
+                print(f"[ERROR] Error processing free interval {start}-{end}: {e}")
+                import traceback
+                traceback.print_exc()
+                continue
+
+    except Exception as e:
+        print(f"[ERROR] Error in get_best_meeting_times: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error calculating best meeting times: {str(e)}")
     finally:
         conn.close()  # always close the database connection
 
-    return GroupFreeTimesResponseWithName(
-        day_of_week=day_of_week,
-        slots=candidate_slots
-    )
+    print(f"[DEBUG] Final candidate_slots count: {len(candidate_slots)}")
+    print(f"[DEBUG] Returning response with day_of_week={day_of_week}, slots={len(candidate_slots)}\n")
+    
+    # Return response matching the expected schema
+    return {
+        "day_of_week": day_of_week,
+        "slots": candidate_slots
+    }

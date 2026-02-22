@@ -1,5 +1,6 @@
 import networkx as nx
 import os
+import csv
 
 class CampusGraph:
     
@@ -30,11 +31,22 @@ class CampusGraph:
         # --- read node coordinates ---
         self.node_coords = {}
         nodes_csv = os.path.join(current_dir, 'nodes.csv')
-        with open(nodes_csv, 'r') as f:
+        with open(nodes_csv, 'r', encoding='utf-8') as f:
             next(f)  # skip header
             for line in f:
-                node, x, y = line.strip().split(',')
-                self.node_coords[node] = (float(x), float(y))
+                parts = line.strip().split(',')
+                if len(parts) >= 3:
+                    # Last two parts are always latitude and longitude
+                    try:
+                        lon = float(parts[-1].strip())
+                        lat = float(parts[-2].strip())
+                        # Everything else is the location name
+                        node = ','.join(parts[:-2]).strip()
+                        self.node_coords[node] = (lat, lon)
+                    except ValueError:
+                        # Skip malformed lines
+                        print(f"[WARNING] Skipping malformed coordinate line: {line.strip()}")
+                        continue
     
     # ------
     # Endpoint: Get the shortest travel time between two locations on campus
@@ -64,6 +76,7 @@ class CampusGraph:
     def get_shortest_path_with_coords(self, start: str, end: str) -> list[dict]:
         """
         Returns a list of nodes from start to end, each with coordinates.
+        Skips nodes that don't have coordinates in the database.
         Example output:
         [
             {"location": "DormA", "lat": 40.1, "lon": -88.2},
@@ -73,11 +86,16 @@ class CampusGraph:
         """
         
         path_nodes = self.get_shortest_path(start, end)
-        return [
-            # for each node in the path, return a dictionary with the location name and its coordinates
-            {"location": node, "lat": self.node_coords[node][0], "lon": self.node_coords[node][1]}
-            for node in path_nodes
-        ]
+        result = []
+        for node in path_nodes:
+            # Skip nodes without coordinates
+            if node in self.node_coords:
+                result.append({
+                    "location": node,
+                    "lat": self.node_coords[node][0],
+                    "lon": self.node_coords[node][1]
+                })
+        return result
     
     # ------
     # Endpoint: Get all locations on campus
