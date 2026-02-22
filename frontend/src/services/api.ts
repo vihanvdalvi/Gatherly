@@ -81,8 +81,10 @@ export const scheduleAPI = {
 
 // ============ ALGORITHM ENDPOINTS ============
 export const algorithmAPI = {
-  getBestMeetingTimes: (groupId: string) =>
-    apiClient.get<BestMeetingResult>(`/algorithm/group/${groupId}/best_meeting_times`),
+  getBestMeetingTimes: (groupId: string, dayOfWeek: number, meetingDuration: number) =>
+    apiClient.get<BestMeetingResult>(`/algorithm/group/${groupId}/best_meeting_times`, {
+      params: { day_of_week: dayOfWeek, meeting_duration: meetingDuration },
+    }),
 };
 
 // ============ GRAPH ENDPOINTS ============

@@ -2,7 +2,6 @@ from fastapi import APIRouter, HTTPException  # for creating API routes and hand
 from typing import List  # for type hinting lists
 from database import get_db_connection  # function to get a database connection
 from schemas import GroupFreeTimesResponseWithName, CommonSlotWithLocationsWithName, PathNode, UserLocationSlotWithName  # new schemas
-from main import campus_graph  # the preloaded CampusGraph instance
 
 # create a router for algorithm-related endpoints
 router = APIRouter()
@@ -24,6 +23,8 @@ def seconds_to_hhmm(seconds):
 # --------
 @router.get("/group/{group_id}/best_meeting_times", response_model=GroupFreeTimesResponseWithName)
 def get_best_meeting_times(group_id: int, day_of_week: int, meeting_duration: int):
+    # Import here to avoid circular imports
+    from main import campus_graph
 
     if not (0 <= day_of_week <= 6):
         raise HTTPException(status_code=400, detail="Invalid day_of_week")

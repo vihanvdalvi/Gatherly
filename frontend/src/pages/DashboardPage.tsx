@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { DashboardHeader } from '../components/DashboardHeader';
 import { GroupsTab } from '../components/Dashboard/GroupsTab';
 import { ScheduleTab } from '../components/Schedule/ScheduleTab';
-import { BestMeetingResults } from '../components/Algorithm/BestMeetingResults';
+import { MeetingVisualization } from '../components/Algorithm/MeetingVisualization';
 import { useAuth } from '../contexts/AuthContext';
 import { algorithmAPI } from '../services/api';
 import type { BestMeetingResult } from '../types/index';
@@ -14,12 +14,24 @@ interface DashboardPageProps {
 
 type TabType = 'groups' | 'schedule' | 'results';
 
+const DAYS_OF_WEEK = [
+  { value: 0, label: 'Sunday' },
+  { value: 1, label: 'Monday' },
+  { value: 2, label: 'Tuesday' },
+  { value: 3, label: 'Wednesday' },
+  { value: 4, label: 'Thursday' },
+  { value: 5, label: 'Friday' },
+  { value: 6, label: 'Saturday' },
+];
+
 export const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout }) => {
   const { user, selectedGroup, setSelectedGroup } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('groups');
   const [bestMeetingResult, setBestMeetingResult] = useState<BestMeetingResult | null>(null);
   const [calculatingBestMeeting, setCalculatingBestMeeting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dayOfWeek, setDayOfWeek] = useState<number>(1); // Monday
+  const [meetingDuration, setMeetingDuration] = useState<number>(30); // 30 minutes
 
   const handleCalculateBestMeeting = async () => {
     if (!selectedGroup) {
@@ -29,13 +41,28 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout }) => {
 
     try {
       setCalculatingBestMeeting(true);
-      const response = await algorithmAPI.getBestMeetingTimes(selectedGroup.group_id);
+      setError(null);
+      console.log('📡 Calling algorithm API with:', {
+        groupId: selectedGroup.group_id,
+        dayOfWeek,
+        meetingDuration,
+      });
+      const response = await algorithmAPI.getBestMeetingTimes(
+        selectedGroup.group_id,
+        dayOfWeek,
+        meetingDuration
+      );
+      console.log('✅ Algorithm API response:', response.data);
       setBestMeetingResult(response.data);
       setActiveTab('results');
-      setError(null);
-    } catch (err) {
-      setError('Failed to calculate best meeting times');
-      console.error(err);
+    } catch (err: any) {
+      console.error('❌ Algorithm API error:', {
+        status: err.response?.status,
+        detail: err.response?.data?.detail,
+        fullError: err,
+      });
+      const errorMessage = err.response?.data?.detail || 'Failed to calculate best meeting times';
+      setError(errorMessage);
     } finally {
       setCalculatingBestMeeting(false);
     }
@@ -70,33 +97,85 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout }) => {
           >
             <div
               style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
+                display: 'grid',
                 gap: 'var(--spacing-lg)',
+                gridTemplateColumns: '1fr auto',
               }}
             >
               <div>
                 <p style={{ margin: '0 0 var(--spacing-xs) 0', color: 'var(--info)', fontWeight: '600' }}>
-                  Selected Group:
+                  Selected Group
                 </p>
-                <h3 style={{ margin: 0, color: 'var(--neutral-900)' }}>
-                  {selectedGroup.name}
-                </h3>
+                <h3 style={{ margin: 0, color: 'var(--primary)' }}>{selectedGroup.name}</h3>
+                <p style={{ margin: 'var(--spacing-xs) 0 0 0', color: 'var(--neutral-600)', fontSize: 'var(--font-sm)' }}>
+                  {selectedGroup.members.length} member{selectedGroup.members.length !== 1 ? 's' : ''}
+                </p>
               </div>
-              <button
-                className="btn btn-primary btn-lg"
-                onClick={handleCalculateBestMeeting}
-                disabled={calculatingBestMeeting}
+
+              {/* Calculate Settings */}
+              <div
+                style={{
+                  display: 'grid',
+                  gap: 'var(--spacing-md)',
+                  alignSelf: 'center',
+                  paddingLeft: 'var(--spacing-lg)',
+                  borderLeft: '2px solid var(--info)',
+                }}
               >
-                {calculatingBestMeeting ? 'Calculating...' : '🎯 Calculate Best Meeting'}
-              </button>
-              <button
-                className="btn btn-secondary"
-                onClick={() => setSelectedGroup(null)}
-              >
-                Clear Selection
-              </button>
+                <div>
+                  <label style={{ fontSize: 'var(--font-sm)', fontWeight: '500', color: 'var(--neutral-700)' }}>
+                    Day of Week
+                  </label>
+                  <select
+                    value={dayOfWeek}
+                    onChange={(e) => setDayOfWeek(Number(e.target.value))}
+                    style={{
+                      marginTop: '4px',
+                      padding: '6px 8px',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--neutral-300)',
+                      fontWeight: '500',
+                    }}
+                  >
+                    {DAYS_OF_WEEK.map((day) => (
+                      <option key={day.value} value={day.value}>
+                        {day.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: 'var(--font-sm)', fontWeight: '500', color: 'var(--neutral-700)' }}>
+                    Duration (min)
+                  </label>
+                  <input
+                    type="number"
+                    min="30"
+                    max="240"
+                    step="15"
+                    value={meetingDuration}
+                    onChange={(e) => setMeetingDuration(Number(e.target.value))}
+                    style={{
+                      marginTop: '4px',
+                      width: '80px',
+                      padding: '6px 8px',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--neutral-300)',
+                      fontWeight: '500',
+                    }}
+                  />
+                </div>
+
+                <button
+                  className="btn btn-primary"
+                  onClick={handleCalculateBestMeeting}
+                  disabled={calculatingBestMeeting || !selectedGroup}
+                  style={{ whiteSpace: 'nowrap' }}
+                >
+                  {calculatingBestMeeting ? '⏳ Calculating...' : '🎯 Find Best Time'}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -138,10 +217,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onLogout }) => {
           {activeTab === 'schedule' && <ScheduleTab />}
 
           {activeTab === 'results' && bestMeetingResult && (
-            <div>
-              <h2 style={{ marginTop: 0 }}>Meeting Analysis for {selectedGroup?.name}</h2>
-              <BestMeetingResults result={bestMeetingResult} />
-            </div>
+            <MeetingVisualization result={bestMeetingResult} />
           )}
         </div>
       </div>

@@ -41,21 +41,39 @@ export interface AddScheduleSlot {
 }
 
 // Algorithm/Best Meeting Types
+export interface PathNode {
+  location: string;
+  lat: number;
+  lon: number;
+}
+
+export interface UserLocationSlot {
+  user_id: string;
+  name: string;
+  location: string;
+  walk_time: number;
+  path: PathNode[];
+}
+
+export interface CommonSlot {
+  start_seconds: number;
+  end_seconds: number;
+  start_hhmm: string;
+  end_hhmm: string;
+  meeting_location: string;
+  user_locations: UserLocationSlot[];
+}
+
+export interface BestMeetingResult {
+  day_of_week: number;
+  slots: CommonSlot[];
+}
+
 export interface FreeInterval {
   start_time: string;
   end_time: string;
   day_of_week: string;
   members_available: string[];
-}
-
-export interface BestMeetingResult {
-  free_intervals: FreeInterval[];
-  suggested_location: string;
-  suggested_time?: {
-    start_time: string;
-    end_time: string;
-    day_of_week: string;
-  };
 }
 
 // API Response types
