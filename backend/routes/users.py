@@ -22,7 +22,7 @@ def signup(user: UserCreate):
             OUTPUT INSERTED.user_id
             VALUES (?, ?, ?, ?)
         """, user.name, user.email, hashed_pwd, user.home_location)
-        user_id = cursor.fetchone()[0]
+        user_id = str(cursor.fetchone()[0])
         conn.commit()
     finally:
         conn.close()
@@ -35,7 +35,7 @@ def signup(user: UserCreate):
     )
 
 # ---- Login ----
-@router.post("/login")
+@router.post("/login", response_model=UserResponse)
 def login(credentials: UserLogin):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -55,7 +55,7 @@ def login(credentials: UserLogin):
         conn.close()
 
     return UserResponse(
-        user_id=user_id,
+        user_id=str(user_id),
         name=name,
         email=email,
         home_location=home_location

@@ -1,4 +1,5 @@
 import networkx as nx
+import os
 
 class CampusGraph:
     
@@ -12,8 +13,12 @@ class CampusGraph:
         Load the campus graph from .dot file and precompute shortest paths
         """
         
+        # Get the directory where this file is located
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        
         # Load the graph from the .dot file
-        self.graph = nx.DiGraph(nx.nx_pydot.read_dot('./graph/campus.dot'))
+        dot_file = os.path.join(current_dir, 'campus.dot')
+        self.graph = nx.DiGraph(nx.nx_pydot.read_dot(dot_file))
         
         # convert edge weights to float seconds (they are read as strings from the .dot file)
         for u, v, d in self.graph.edges(data=True):
@@ -24,7 +29,8 @@ class CampusGraph:
         
         # --- read node coordinates ---
         self.node_coords = {}
-        with open('./graph/nodes.csv', 'r') as f:
+        nodes_csv = os.path.join(current_dir, 'nodes.csv')
+        with open(nodes_csv, 'r') as f:
             next(f)  # skip header
             for line in f:
                 node, x, y = line.strip().split(',')

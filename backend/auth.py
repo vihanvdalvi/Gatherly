@@ -1,10 +1,11 @@
 from passlib.context import CryptContext
 
-# Create a password context for hashing and verifying passwords
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Create a password context for hashing and verifying passwords using Argon2
+# Argon2 is more secure than bcrypt and doesn't have the 72-byte password limit
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 def hash_password(password: str) -> str:
-    """Hash a password using bcrypt."""
+    """Hash a password using Argon2."""
     return pwd_context.hash(password)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

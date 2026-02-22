@@ -5,4 +5,5 @@ pyodbc
 networkx
 pydantic
 pydot
-passlib[bcrypt]
+passlib[argon2]
+email-validator

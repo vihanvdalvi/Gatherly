@@ -28,7 +28,7 @@ class UserLogin(BaseModel):
 # Response model for returning user information (excluding password)
 # ------
 class UserResponse(BaseModel):
-    user_id: int
+    user_id: str
     name: str
     email: EmailStr
     home_location: str
