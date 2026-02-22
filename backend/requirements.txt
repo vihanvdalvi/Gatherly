@@ -4,4 +4,6 @@ python-dotenv
 pyodbc
 networkx
 pydantic
-passlib[bcrypt]
+pydot
+passlib[argon2]
+email-validator
