@@ -6,7 +6,7 @@ Finds the ideal meeting spot on UW-Madison campus for a group, factoring in ever
 
 ### Backend
 - **Framework**: FastAPI (Python)
-- **Database**: SQL Server
+- **Database**: Azure SQL Server
 - **Graph Library**: NetworkX
 - **API Routes**: Modular router structure for users, groups, schedules, and algorithms
 
