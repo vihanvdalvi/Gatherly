@@ -55,8 +55,10 @@ export const groupAPI = {
   displayInfo: (groupId: string) =>
     apiClient.get<Group>(`/groups/${groupId}/displayInfo`),
 
-  changeCode: (groupId: string) =>
-    apiClient.post(`/groups/${groupId}/change_code`, {}),
+  changeCode: (groupId: string, creatorUserId: string) =>
+    apiClient.post<{ group_id: string; new_group_code: string }>(`/groups/${groupId}/change_code`, null, {
+      params: { creator_user_id: creatorUserId },
+    }),
 
   removeMember: (groupId: string, creatorUserId: string, memberUserId: string) =>
     apiClient.delete(`/groups/${groupId}/remove_member`, {

@@ -90,7 +90,7 @@ export const GroupCard: React.FC<GroupCardProps> = ({
             e.stopPropagation();
             onGenerateCode();
           }}>
-            New Code
+            Change Share Code
           </button>
         )}
       </div>

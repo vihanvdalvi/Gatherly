@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Group } from '../../types/index';
-import { userAPI } from '../../services/api';
+import { groupAPI, userAPI } from '../../services/api';
 import { GroupCard } from './GroupCard';
 import { CreateGroupModal } from './CreateGroupModal';
 import { JoinGroupModal } from './JoinGroupModal';
@@ -15,6 +15,7 @@ interface GroupsTabProps {
 export const GroupsTab: React.FC<GroupsTabProps> = ({ userId, selectedGroup, onSelectGroup }) => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
+  const [changingCodeFor, setChangingCodeFor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
@@ -54,6 +55,46 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ userId, selectedGroup, onS
   const handleGroupJoined = (group: Group) => {
     setGroups([...groups, group]);
     onSelectGroup(group);
+  };
+
+  const handleChangeGroupCode = async (group: Group) => {
+    if (!group.is_creator) {
+      return;
+    }
+
+    try {
+      setChangingCodeFor(group.group_id);
+      setError(null);
+      const response = await groupAPI.changeCode(group.group_id, userId);
+      const updatedGroup = {
+        ...group,
+        code: response.data.new_group_code,
+      };
+
+      setGroups((currentGroups) =>
+        currentGroups.map((currentGroup) =>
+          currentGroup.group_id === group.group_id ? updatedGroup : currentGroup,
+        ),
+      );
+
+      if (selectedGroup?.group_id === group.group_id) {
+        onSelectGroup(updatedGroup);
+      }
+    } catch (err: any) {
+      console.error('Failed to change group code:', {
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        data: err.response?.data,
+        message: err.message,
+      });
+      setError(
+        err.response?.data?.detail ||
+        err.response?.data?.message ||
+        'Failed to change group code',
+      );
+    } finally {
+      setChangingCodeFor(null);
+    }
   };
 
   if (loading) {
@@ -104,9 +145,16 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({ userId, selectedGroup, onS
               group={group}
               isSelected={selectedGroup?.group_id === group.group_id}
               onSelect={() => onSelectGroup(group)}
+              onGenerateCode={group.is_creator ? () => void handleChangeGroupCode(group) : undefined}
             />
           ))}
         </div>
+      )}
+
+      {changingCodeFor && (
+        <p style={{ marginTop: 'var(--spacing-md)', color: 'var(--neutral-500)' }}>
+          Updating group code...
+        </p>
       )}
 
       <CreateGroupModal
