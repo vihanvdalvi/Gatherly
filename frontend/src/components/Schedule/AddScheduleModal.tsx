@@ -25,14 +25,6 @@ const timeToSeconds = (timeStr: string): number => {
   return (hours - 7) * 3600 + minutes * 60;
 };
 
-// Convert seconds past 7:00 AM back to time string (HH:MM)
-const secondsToTime = (seconds: number): string => {
-  const baseHour = 7;
-  const hours = Math.floor(seconds / 3600) + baseHour;
-  const minutes = Math.floor((seconds % 3600) / 60);
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-};
-
 export const AddScheduleModal: React.FC<AddScheduleModalProps> = ({ userId, onClose, onAdd }) => {
   const [dayOfWeek, setDayOfWeek] = useState<number>(1); // Monday
   const [startTime, setStartTime] = useState('09:00'); // 9:00 AM

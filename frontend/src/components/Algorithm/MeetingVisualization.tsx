@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import type { BestMeetingResult, CommonSlot, UserLocationSlot } from '../../types/index';
+import React from 'react';
+import type { BestMeetingResult, CommonSlot } from '../../types/index';
 import '../../styles/components.css';
 
 interface MeetingVisualizationProps {
@@ -9,14 +9,6 @@ interface MeetingVisualizationProps {
 }
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-// Convert seconds past 7:00 AM to time string
-const secondsToTime = (seconds: number): string => {
-  const baseHour = 7;
-  const hours = Math.floor(seconds / 3600) + baseHour;
-  const minutes = Math.floor((seconds % 3600) / 60);
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-};
 
 // Convert seconds to minutes
 const secondsToMinutes = (seconds: number): string => {
